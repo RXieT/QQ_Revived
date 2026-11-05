@@ -36,9 +36,12 @@ android {
         }
     }
 
-    sourceSets.getByName("main").java.srcDir(
-        rootProject.file("third_party/miuix-glass/src/commonMain/kotlin")
-    )
+    // AGP 9 built-in Kotlin does not compile custom Java source directories as Kotlin.
+    sourceSets.named("main") {
+        kotlin.directories.add(
+            rootProject.file("third_party/miuix-glass/src/commonMain/kotlin").absolutePath
+        )
+    }
 
     buildFeatures {
         viewBinding = true
