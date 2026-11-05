@@ -39,7 +39,8 @@ class MainViewModel : ViewModel() {
             frameworkPropertiesText = "Framework properties: $properties",
             scopeText = "Scope: $scope",
             processText = if (apiVersion >= 102) "Processes: $runningTargets" else "",
-            reloadEnabled = apiVersion >= 102
+            // 注入的 Compose View 和宿主回调无法安全跨模块 ClassLoader 热重载。
+            reloadEnabled = false
         )
     }
 

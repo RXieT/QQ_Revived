@@ -24,10 +24,10 @@ Xposed 入口：
 
 入口流程：
 1. `ModuleMainKt` 只处理目标宿主 `com.tencent.qqlite`。
-2. 在 `onPackageLoaded` 和 `onPackageReady` 中调用 `RevivedKoin.ensureStarted()`，保证 Xposed 进程中 DI 已初始化。
-3. Framework Hook 安装：`PhoneResourcesHook`、`StatusBarHook`、`OrientationHook`。
-4. App Hook 安装：`VideoReportHiddenApiHook`、`HomeComposeHook`、`AioComposeHook`、`AutoSizeHook`、`WatchUiHook`。
-5. Hot reload 时会 reset hook 状态和运行时缓存。
+2. 在 `onPackageLoaded` 安装 Framework Hook；`onPackageReady` 兜底安装 Framework Hook，并调用 `RevivedKoin.ensureStarted()`。
+3. Framework Hook 安装：`MsfAliveJobHook`、`PhoneResourcesHook`、`HostThemeHook`、`StatusBarHook`、`OrientationHook`。
+4. 仅在 `onPackageReady` 使用最终宿主 ClassLoader 安装 App Hook：`VideoReportHiddenApiHook`、`HomeComposeHook`、`AioComposeHook`、`QavComposeHook`、`HostLongPressMenuHook`、`AutoSizeHook`、`WatchUiHook`。各 Hook 的安装异常独立记录，不阻断后续 Hook，也不自动重试部分安装的 Hook。
+5. 禁用自动与手动 hot reload。现有注入 View 和回调未实现完整清理，框架也不会在重载后重放包生命周期；更新模块需要强行停止宿主再启动。
 
 普通模块 App 入口：
 - `App.kt`：模块自身 Application，调用 `RevivedKoin.ensureStarted(this)` 并注册 `XposedServiceHelper`。
@@ -222,6 +222,8 @@ rg -n "me\.padi\.qqlite\.revived\.hooks" "app/src/main/java/me/padi/qqlite/reviv
 - Shared 层不引用 hooks。
 
 ## 当前已知状态
+
+本分支的 Vector / Android 17 兼容性修改尚未编译和真机验证。以下是上游历史记录，不代表本次验证结果：
 
 - 宿主运行正常。
 - 模块自身运行正常。

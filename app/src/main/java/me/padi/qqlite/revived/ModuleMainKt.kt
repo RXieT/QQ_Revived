@@ -5,8 +5,6 @@ import android.os.Build
 import android.util.Log
 import androidx.annotation.RequiresApi
 import io.github.libxposed.api.XposedModule
-import io.github.libxposed.api.XposedModuleInterface.HotReloadedParam
-import io.github.libxposed.api.XposedModuleInterface.HotReloadingParam
 import io.github.libxposed.api.XposedModuleInterface.ModuleLoadedParam
 import io.github.libxposed.api.XposedModuleInterface.PackageLoadedParam
 import io.github.libxposed.api.XposedModuleInterface.PackageReadyParam
@@ -45,8 +43,6 @@ class ModuleMainKt : XposedModule() {
         StatusBarHook,
         OrientationHook
     )
-    private val earlyAppHooks: List<BaseHook> = listOf(
-    )
     private val appHooks: List<BaseHook> = listOf(
         VideoReportHiddenApiHook,
         HomeComposeHook,
@@ -58,56 +54,45 @@ class ModuleMainKt : XposedModule() {
     )
 
     override fun onModuleLoaded(param: ModuleLoadedParam) {
-        log(Log.INFO, TAG, "Loaded in ${param.processName}, API $apiVersion")
-    }
-
-    override fun onHotReloading(param: HotReloadingParam): Boolean {
-        return true
-    }
-
-    override fun onHotReloaded(param: HotReloadedParam) {
-        param.oldHookHandles.forEach { it.unhook() }
-        frameworkHooksInstalled = false
-        appHooksInstalled = false
-        cachedModuleContext = null
-        (frameworkHooks + earlyAppHooks + appHooks).forEach { it.reset() }
+        log(Log.INFO, TAG, "Loaded in ${param.processName}, API $apiVersion, Android ${Build.VERSION.RELEASE} (SDK ${Build.VERSION.SDK_INT})")
     }
 
     @RequiresApi(Build.VERSION_CODES.Q)
     override fun onPackageLoaded(param: PackageLoadedParam) {
         if (param.packageName != TARGET_PACKAGE) return
-        RevivedKoin.ensureStarted()
+        // 此阶段只安装系统 Hook，宿主可能还会替换默认 ClassLoader。
         installFrameworkHooks()
-        installEarlyAppHooks(param.defaultClassLoader)
-        installAppHooks(param.defaultClassLoader)
-
     }
 
     override fun onPackageReady(param: PackageReadyParam) {
         if (param.packageName != TARGET_PACKAGE) return
-        RevivedKoin.ensureStarted()
         installFrameworkHooks()
-        installEarlyAppHooks(param.classLoader)
+        RevivedKoin.ensureStarted()
         installAppHooks(param.classLoader)
-        logHook(Log.INFO, "Hooks installed for ${param.packageName}")
+        logHook(Log.INFO, "Hook installation finished for ${param.packageName}; see individual hook logs for failures")
     }
 
     private fun installFrameworkHooks() {
         if (frameworkHooksInstalled) return
         frameworkHooksInstalled = true
 
-        frameworkHooks.forEach { it.install(this, null) }
-    }
-
-    private fun installEarlyAppHooks(classLoader: ClassLoader) {
-        earlyAppHooks.forEach { it.install(this, classLoader) }
+        frameworkHooks.forEach { installHookSafely(it, null) }
     }
 
     private fun installAppHooks(classLoader: ClassLoader) {
         if (appHooksInstalled) return
         appHooksInstalled = true
 
-        appHooks.forEach { it.install(this, classLoader) }
+        appHooks.forEach { installHookSafely(it, classLoader) }
+    }
+
+    private fun installHookSafely(hook: BaseHook, classLoader: ClassLoader?) {
+        // 一个反射目标失效不应阻断其他功能，也不重复安装可能已部分成功的 Hook。
+        runCatching {
+            hook.install(this, classLoader)
+        }.onFailure {
+            logHook(Log.ERROR, "Hook installation failed: ${hook.javaClass.simpleName}", it)
+        }
     }
 
     internal fun intercept(method: Method, block: ModuleHookChain.() -> Any?) {

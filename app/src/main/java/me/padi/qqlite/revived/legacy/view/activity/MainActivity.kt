@@ -1,6 +1,5 @@
 package me.padi.qqlite.revived.legacy.view.activity
 
-import android.annotation.SuppressLint
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -86,25 +85,8 @@ class MainActivity : ComponentActivity(), App.ServiceStateListener {
         }
     }
 
-    @SuppressLint("XposedNewApi")
     private fun hotReloadTargets() {
-        val currentService = service
-        if ((currentService?.apiVersion ?: 0) < 102) {
-            Toast.makeText(this, "当前框架 API 不支持热重载", Toast.LENGTH_SHORT).show()
-            return
-        }
-        val targets = currentService?.runningTargets.orEmpty()
-        targets.forEach { target ->
-            currentService?.hotReloadModule(target, null) { process, result ->
-                runOnUiThread {
-                    Toast.makeText(
-                        this@MainActivity,
-                        "Reload ${process.processName}, $result",
-                        Toast.LENGTH_LONG
-                    ).show()
-                }
-            }
-        }
+        Toast.makeText(this, "为避免界面与 Hook 失效，请强行停止 QQ 后重新打开", Toast.LENGTH_LONG).show()
     }
 
     private fun requestScope() {
