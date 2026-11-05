@@ -22,8 +22,9 @@ QQ Revived 是一个基于 libxposed 的 Android 模块，目标宿主为 `com.t
 ## 目标环境
 
 - Android Gradle Plugin 9.2.1
-- Kotlin 2.4.0
-- compileSdk 37 / targetSdk 37 / minSdk 26
+- Kotlin 2.4.10 / Compose 1.12.0-rc01
+- compileSdk 37 / targetSdk 37 / minSdk 33（Android 13+）
+- Miuix UI / blur 0.9.4-rc01，与 Hyper-PiliPlus Android 原生层对齐
 - libxposed API 102，模块 `minApiVersion=101`
 - 目标宿主包名：`com.tencent.qqlite`
 
@@ -48,6 +49,17 @@ QQ Revived 是一个基于 libxposed 的 Android 模块，目标宿主为 `com.t
 
 libxposed 的回调与热重载契约见 [API 102 源码](https://github.com/libxposed/api/blob/102.0.0/api/src/main/java/io/github/libxposed/api/XposedModuleInterface.java)。框架 API 版本与 Android SDK 版本是两回事，不能仅凭 Android 17 推断框架支持 API 102。
 
+## 本分支的源码恢复与玻璃组件
+
+上游 `cefec2e` / `5d41bbd` 引用了未提交的公共组件、主题、设置和窗口适配源码，干净检出无法编译。本分支从 `9570e8b` 恢复可追溯的头像、图片请求和状态组件，其余按现有调用契约重新实现；重建界面不保证与原版截图完全一致。
+
+- 主题同时提供 Miuix / Material 配色，支持系统/浅色/深色、三种强调色及玻璃开关。
+- QQ 内“我的 → 模块设置”与模块管理页分别保存到各自应用的私有偏好，**不跨应用同步**；QQ 的设置入口不再依赖宿主动作列表非空。
+- 首页浮动导航、侧栏和聊天顶栏使用 Miuix blur + 固定版本的 Apache-2.0 玻璃材质；关闭玻璃或未启用硬件加速时使用普通背景。背景采样不包含玻璃消费者，避免递归绘制。
+- 依赖参考 [Hyper-PiliPlus](https://github.com/AritxOnly/Hyper-PiliPlus/tree/12f95eaf5d660a1c3ae5bb5e66c39984ddd73aac) 的原生 Android 层。其 Dart 组件和 GPL 自定义导航未复制。这里不是官方名为“HyperOS 4”的 Miuix 发布版，也不承诺完全复刻参考应用效果。
+- 未发布的玻璃源码固定于 Miuix PR #423 提交 `ec4c96963abf206ab2f2b0253a5efca71ba28043`，来源、修改记录及许可证见 [`third_party/miuix-glass/README.md`](third_party/miuix-glass/README.md)。这套运行时着色器将最低系统版本提升至 **Android 13**。
+- 新增自适应布局单元测试；宿主窗口指标直接读取 View / Insets，不覆盖宿主 Insets listener。所有新界面仍需真机验证返回、键盘、旋转和 GPU 效果。
+
 ## 交流群
 [💬 加入 Telegram 交流群](https://t.me/niubimokuai)
 
@@ -55,7 +67,7 @@ libxposed 的回调与热重载契约见 [API 102 源码](https://github.com/lib
 
 ### GitHub Actions（无需本地 Android 编译环境）
 
-`.github/workflows/android-debug.yml` 在推送 `master` / `fix/**` 分支、向 `master` 提交 PR 或手动触发时运行。工作流安装 JDK 21、Android SDK 37 和 Build Tools 37.0.0，依次执行 Kotlin 编译、Lint 和 debug APK 构建；任一步失败都会阻止后续构建，不跳过检查。
+`.github/workflows/android-debug.yml` 在推送 `master` / `fix/**` 分支、向 `master` 提交 PR 或手动触发时运行。工作流安装 JDK 21、Android SDK 37 和 Build Tools 37.0.0，依次执行 Kotlin 编译、单元测试、Lint 和 debug APK 构建；任一步失败都会阻止后续构建，不跳过检查。
 
 在仓库 **Actions → Android debug APK** 中打开对应运行，成功后下载 `QQ-Revived-debug-运行编号` artifact，解压取得 APK。诊断报告以独立 artifact 上传，保留 14 天。CI 成功仅表示构建检查通过，不代表 Vector / Android 17 真机兼容已验证。
 

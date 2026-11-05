@@ -54,16 +54,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import coil3.compose.AsyncImage
-import com.kyant.backdrop.Backdrop
-import com.kyant.backdrop.backdrops.layerBackdrop
-import com.kyant.backdrop.backdrops.rememberLayerBackdrop
-import com.kyant.backdrop.drawBackdrop
-import com.kyant.backdrop.effects.blur
-import com.kyant.backdrop.effects.lens
-import com.kyant.backdrop.effects.vibrancy
-import com.kyant.backdrop.highlight.Highlight
-import dev.chrisbanes.haze.HazeState
-import dev.chrisbanes.haze.hazeSource
+import top.yukonga.miuix.kmp.blur.Backdrop
+import top.yukonga.miuix.kmp.blur.layerBackdrop
+import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
+import top.yukonga.miuix.kmp.glass.GlassShape
+import me.padi.qqlite.revived.compose.component.glass.revivedGlass
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import me.padi.qqlite.revived.compose.component.avatar.HostAvatar
@@ -126,7 +121,6 @@ internal fun HomeScreen(controller: HomeUiController) {
             RevivedUiMode.Miuix -> MiuixTheme.colorScheme.surface
             RevivedUiMode.Material -> MaterialTheme.colorScheme.surface
         }
-        val hazeState = remember { HazeState() }
         val liquidBackdrop = rememberLayerBackdrop {
             drawRect(backgroundColor)
             drawContent()
@@ -138,7 +132,6 @@ internal fun HomeScreen(controller: HomeUiController) {
         BoxWithConstraints(
             modifier = Modifier
                 .fillMaxSize()
-                .then(if (themePreference.enableLiquidGlass) Modifier.hazeSource(state = hazeState) else Modifier)
                 .background(backgroundColor)
         ) {
             HomeBackdrop(
@@ -181,7 +174,6 @@ internal fun HomeScreen(controller: HomeUiController) {
                                 pagerState.animateScrollToPage(index)
                             }
                         },
-                        hazeState = hazeState,
                         surfaceColor = surfaceColor,
                         backdrop = liquidBackdrop,
                     )
@@ -193,11 +185,6 @@ internal fun HomeScreen(controller: HomeUiController) {
                 Row(
                     modifier = Modifier
                         .fillMaxSize()
-                        .then(
-                            if (themePreference.enableLiquidGlass) Modifier.layerBackdrop(
-                                liquidBackdrop
-                            ) else Modifier
-                        )
                         .padding(
                             start = innerPadding.calculateLeftPadding(androidx.compose.ui.unit.LayoutDirection.Ltr),
                             top = 0.dp,
@@ -214,14 +201,15 @@ internal fun HomeScreen(controller: HomeUiController) {
                                     pagerState.animateScrollToPage(index)
                                 }
                             },
-                            hazeState = hazeState,
                             surfaceColor = surfaceColor,
+                            backdrop = liquidBackdrop,
                             modifier = Modifier.width(HOME_RAIL_WIDTH_DP.dp)
                         )
                     }
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
+                            .then(if (themePreference.enableLiquidGlass) Modifier.layerBackdrop(liquidBackdrop) else Modifier)
                             .background(backgroundColor)
                             .padding(horizontal = windowInfo.contentPadding)
                     ) {
@@ -322,32 +310,20 @@ private fun HomeTopBar(
     }
 }
 
+@Composable
 private fun Modifier.homeTopBarGlass(
     enabled: Boolean,
     surfaceColor: Color,
     backdrop: Backdrop,
 ): Modifier {
-    val shape = RoundedCornerShape(bottomStart = 22.dp, bottomEnd = 22.dp)
-    if (!enabled) {
-        return this.background(surfaceColor.copy(alpha = 0.96f), shape)
-    }
-    return this
-        .drawBackdrop(
-            backdrop = backdrop,
-            shape = { shape },
-            effects = {
-                vibrancy()
-                blur(18.dp.toPx())
-                lens(28.dp.toPx(), 18.dp.toPx())
-            },
-            highlight = {
-                Highlight.Default.copy(alpha = 0.26f)
-            },
-            onDrawSurface = {
-                drawRect(surfaceColor.copy(alpha = 0.40f))
-            }
-        )
-        .background(Color.Transparent, shape)
+    val corner = androidx.compose.foundation.shape.CornerSize(22.dp)
+    val square = androidx.compose.foundation.shape.CornerSize(0.dp)
+    return revivedGlass(
+        backdrop = backdrop,
+        shape = GlassShape(square, square, corner, corner),
+        surfaceColor = surfaceColor,
+        enabled = enabled
+    )
 }
 
 @Composable
@@ -382,7 +358,8 @@ private fun HomeUiState.isPageDataLoading(page: HomePage): Boolean {
         "消息" -> recentRows.isEmpty()
         "联系人" -> contacts.isEmpty()
         "动态" -> qzoneFeeds.isEmpty()
-        "我的" -> visibleSelfActions.isEmpty()
+        // 模块设置不依赖宿主动作列表，不能被加载态挡住。
+        "我的" -> false
         else -> false
     }
 }

@@ -4,7 +4,7 @@ material-icons-extended = "1.7.8"
 xposed-api = "102.0.0"
 xposed-service = "102.0.0"
 material = "1.14.0"
-compose = "1.11.4"
+compose = "1.12.0-rc01"
 coil = "3.5.0"
 material3 = "1.5.0-alpha23"
 graphics-shapes = "1.1.0"
@@ -14,8 +14,8 @@ navigation = "2.9.8"
 paging = "3.4.0-alpha04"
 koin = "4.2.2"
 savedstate = "1.5.0"
-kotlin = "2.4.0"
-miuix = "0.9.3"
+kotlin = "2.4.10"
+miuix = "0.9.4-rc01"
 zoomimage = "1.6.0-beta01"
 
 [plugins]
@@ -54,5 +54,5 @@ miuix-ui = { group = "top.yukonga.miuix.kmp", name = "miuix-ui-android", version
 miuix-preference = { group = "top.yukonga.miuix.kmp", name = "miuix-preference-android", version.ref = "miuix" }
 miuix-icons = { group = "top.yukonga.miuix.kmp", name = "miuix-icons-android", version.ref = "miuix" }
 miuix-squircle = { group = "top.yukonga.miuix.kmp", name = "miuix-squircle-android", version.ref = "miuix" }
-miuix-navigation3-ui = { group = "top.yukonga.miuix.kmp", name = "miuix-navigation3-ui-android", version.ref = "miuix" }
+miuix-blur = { group = "top.yukonga.miuix.kmp", name = "miuix-blur-android", version.ref = "miuix" }
 zoomimage-compose-coil3 = { group = "io.github.panpf.zoomimage", name = "zoomimage-compose-coil3", version.ref = "zoomimage" }

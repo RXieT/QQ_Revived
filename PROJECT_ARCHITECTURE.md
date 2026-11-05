@@ -221,6 +221,15 @@ rg -n "me\.padi\.qqlite\.revived\.hooks" "app/src/main/java/me/padi/qqlite/reviv
 - Compose 层不引用 hooks。
 - Shared 层不引用 hooks。
 
+## 源码恢复与视觉层（本分支）
+
+- `compose/component/`：从 `9570e8b` 恢复头像、图片请求、状态组件；重建功能卡片和可访问的浮动导航。导航选中状态仍由 `HomeUiController` 提供。
+- `compose/theme/`：同时提供 Miuix / Material 主题，偏好保存在当前应用私有 SharedPreferences，模块管理页与 QQ 不共享设置。系统栏只操作当前 Activity，不反向依赖 hooks。
+- `compose/screens/settings/`：管理页和 QQ 内主题面板仅发出回调，持久化由主题状态完成。
+- `shared/model/ui/`：窗口分级及聊天/通话尺寸约束；JUnit 测试位于 `app/src/test/`。
+- `utils/HostWindowMetrics.kt`：使用宿主 View 的根窗口大小及 Insets，监听绘制/挂载更新，销毁时移除监听，不替换宿主 Insets listener。
+- `third_party/miuix-glass/`：固定 Apache-2.0 材质源码；Miuix UI/blur 为 `0.9.4-rc01`，最低 Android 13，出处见该目录 README。旧 backdrop / haze 依赖已移除。
+
 ## 当前已知状态
 
 本分支的 Vector / Android 17 兼容性修改尚未编译和真机验证。以下是上游历史记录，不代表本次验证结果：

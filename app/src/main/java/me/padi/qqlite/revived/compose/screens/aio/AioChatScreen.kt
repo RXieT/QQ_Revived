@@ -97,14 +97,12 @@ import coil3.compose.AsyncImage
 import coil3.compose.AsyncImagePainter
 import coil3.compose.rememberAsyncImagePainter
 import coil3.request.ImageRequest
-import com.kyant.backdrop.Backdrop
-import com.kyant.backdrop.backdrops.layerBackdrop
-import com.kyant.backdrop.backdrops.rememberLayerBackdrop
-import com.kyant.backdrop.drawBackdrop
-import com.kyant.backdrop.effects.blur
-import com.kyant.backdrop.effects.lens
-import com.kyant.backdrop.effects.vibrancy
-import com.kyant.backdrop.highlight.Highlight
+import top.yukonga.miuix.kmp.blur.Backdrop
+import top.yukonga.miuix.kmp.blur.layerBackdrop
+import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
+import top.yukonga.miuix.kmp.glass.GlassShape
+import me.padi.qqlite.revived.compose.component.glass.revivedGlass
+import me.padi.qqlite.revived.compose.theme.currentRevivedThemePreference
 import com.github.panpf.zoomimage.CoilZoomAsyncImage
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -176,6 +174,7 @@ internal fun AioChatScreen(controller: AioUiController) {
         var showPbDialog by remember { mutableStateOf(false) }
         var pbJsonText by remember { mutableStateOf("") }
         var previewMessage by remember { mutableStateOf<AioMessage?>(null) }
+        val enableGlass = currentRevivedThemePreference().enableLiquidGlass
         val chatBackgroundColor = MiuixTheme.colorScheme.secondaryVariant
         val topBarBackdrop = rememberLayerBackdrop {
             drawRect(chatBackgroundColor)
@@ -206,7 +205,7 @@ internal fun AioChatScreen(controller: AioUiController) {
                 modifier = Modifier
                     .fillMaxSize()
                     .background(chatBackgroundColor)
-                    .layerBackdrop(topBarBackdrop)
+                    .then(if (enableGlass) Modifier.layerBackdrop(topBarBackdrop) else Modifier)
                     .padding(padding)
             ) {
                 if (uiState.loading && pagingMessages.itemCount == 0) {
@@ -281,20 +280,16 @@ private fun AioTopBar(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(bottomStart = 22.dp, bottomEnd = 22.dp))
-            .drawBackdrop(
+            .revivedGlass(
                 backdrop = backdrop,
-                shape = { RoundedCornerShape(bottomStart = 22.dp, bottomEnd = 22.dp) },
-                effects = {
-                    vibrancy()
-                    blur(18.dp.toPx())
-                    lens(28.dp.toPx(), 18.dp.toPx())
-                },
-                highlight = {
-                    Highlight.Default.copy(alpha = 0.24f)
-                },
-                onDrawSurface = {
-                    drawRect(topBarSurfaceColor.copy(alpha = 0.42f))
-                }
+                shape = GlassShape(
+                    androidx.compose.foundation.shape.CornerSize(0.dp),
+                    androidx.compose.foundation.shape.CornerSize(0.dp),
+                    androidx.compose.foundation.shape.CornerSize(22.dp),
+                    androidx.compose.foundation.shape.CornerSize(22.dp)
+                ),
+                surfaceColor = topBarSurfaceColor,
+                enabled = currentRevivedThemePreference().enableLiquidGlass
             )
             .background(Color.Transparent)
             .hostStatusBarsPadding()

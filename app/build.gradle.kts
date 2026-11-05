@@ -10,7 +10,8 @@ android {
 
     defaultConfig {
         applicationId = "me.padi.qqlite.revived"
-        minSdk = 26
+        // Miuix blur / glass uses Android RuntimeShader (API 33+).
+        minSdk = 33
         targetSdk = 37
         versionCode = 102
         versionName = "1.0.2"
@@ -34,6 +35,10 @@ android {
             signingConfig = signingConfigs["debug"]
         }
     }
+
+    sourceSets.getByName("main").java.srcDir(
+        rootProject.file("third_party/miuix-glass/src/commonMain/kotlin")
+    )
 
     buildFeatures {
         viewBinding = true
@@ -91,10 +96,9 @@ dependencies {
     implementation(libs.miuix.preference)
     implementation(libs.miuix.icons)
     implementation(libs.miuix.squircle)
-    implementation(libs.miuix.navigation3.ui)
+    implementation(libs.miuix.blur)
+    implementation("io.github.kyant0:shapes:1.2.0")
 
-    implementation("io.github.kyant0:backdrop:2.0.0")
-    implementation("dev.chrisbanes.haze:haze:2.0.0-alpha03")
-    implementation("dev.chrisbanes.haze:haze-blur:2.0.0-alpha03")
+    testImplementation("junit:junit:4.13.2")
 
 }
