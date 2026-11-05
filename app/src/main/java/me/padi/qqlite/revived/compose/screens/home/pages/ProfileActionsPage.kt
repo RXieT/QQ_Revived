@@ -110,6 +110,12 @@ internal fun ProfileActionsPage(
         },
         onLiquidGlassChange = { enabled ->
             RevivedThemeState.updateLiquidGlassEnabled(context, enabled)
+        },
+        onGlassLevelChange = { level ->
+            RevivedThemeState.updateGlassLevel(context, level)
+        },
+        onFrostLevelChange = { level ->
+            RevivedThemeState.updateFrostLevel(context, level)
         }
     )
 }

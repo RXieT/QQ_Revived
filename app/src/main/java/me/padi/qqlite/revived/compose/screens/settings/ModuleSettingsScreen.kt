@@ -18,10 +18,12 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import me.padi.qqlite.revived.compose.theme.RevivedEffectLevel
 import me.padi.qqlite.revived.compose.theme.RevivedThemeMode
 import me.padi.qqlite.revived.compose.theme.RevivedThemePreference
 import me.padi.qqlite.revived.compose.theme.RevivedThemePreset
@@ -45,6 +47,8 @@ fun ModuleSettingsScreen(
     onThemeModeChange: (RevivedThemeMode) -> Unit,
     onThemePresetChange: (RevivedThemePreset) -> Unit,
     onLiquidGlassChange: (Boolean) -> Unit,
+    onGlassLevelChange: (RevivedEffectLevel) -> Unit,
+    onFrostLevelChange: (RevivedEffectLevel) -> Unit,
 ) {
     Column(
         modifier = Modifier.fillMaxSize()
@@ -87,6 +91,7 @@ fun ModuleSettingsScreen(
         ThemeSettings(
             themePreference, onUiModeChange, onThemeModeChange,
             onThemePresetChange, onLiquidGlassChange,
+            onGlassLevelChange, onFrostLevelChange,
         )
     }
 }
@@ -100,6 +105,8 @@ fun ModuleThemeSettingsSheet(
     onThemeModeChange: (RevivedThemeMode) -> Unit,
     onThemePresetChange: (RevivedThemePreset) -> Unit,
     onLiquidGlassChange: (Boolean) -> Unit,
+    onGlassLevelChange: (RevivedEffectLevel) -> Unit,
+    onFrostLevelChange: (RevivedEffectLevel) -> Unit,
 ) {
     WindowBottomSheet(
         show = show,
@@ -114,6 +121,7 @@ fun ModuleThemeSettingsSheet(
             ThemeSettings(
                 themePreference, onUiModeChange, onThemeModeChange,
                 onThemePresetChange, onLiquidGlassChange,
+                onGlassLevelChange, onFrostLevelChange,
             )
             TextButton(
                 text = "完成",
@@ -131,6 +139,8 @@ private fun ThemeSettings(
     onThemeModeChange: (RevivedThemeMode) -> Unit,
     onThemePresetChange: (RevivedThemePreset) -> Unit,
     onLiquidGlassChange: (Boolean) -> Unit,
+    onGlassLevelChange: (RevivedEffectLevel) -> Unit,
+    onFrostLevelChange: (RevivedEffectLevel) -> Unit,
 ) {
     SettingsSection("界面风格") {
         ChoiceGroup(
@@ -176,7 +186,28 @@ private fun ThemeSettings(
             Text("液态玻璃", modifier = Modifier.weight(1f))
             Switch(checked = preference.enableLiquidGlass, onCheckedChange = null)
         }
-        Text("控制支持玻璃效果的模块组件；关闭后使用普通背景。")
+        Text("控制支持玻璃效果的模块组件；关闭后使用普通背景，保留已选等级。")
+        val effectLevels = listOf(
+            RevivedEffectLevel.Off to "关闭",
+            RevivedEffectLevel.Low to "低",
+            RevivedEffectLevel.Medium to "中",
+            RevivedEffectLevel.High to "高",
+        )
+        Text("玻璃折射等级", fontWeight = FontWeight.SemiBold)
+        ChoiceGroup(
+            choices = effectLevels,
+            selected = preference.glassLevel,
+            onSelect = onGlassLevelChange,
+            enabled = preference.enableLiquidGlass,
+        )
+        Text("磨砂模糊等级", fontWeight = FontWeight.SemiBold)
+        ChoiceGroup(
+            choices = effectLevels,
+            selected = preference.frostLevel,
+            onSelect = onFrostLevelChange,
+            enabled = preference.enableLiquidGlass,
+        )
+        Text("玻璃控制折射与高光，磨砂控制背景模糊；两种等级可独立组合。")
     }
 }
 
@@ -194,20 +225,26 @@ private fun SettingsSection(title: String, content: @Composable ColumnScope.() -
 }
 
 @Composable
-private fun <T> ChoiceGroup(choices: List<Pair<T, String>>, selected: T, onSelect: (T) -> Unit) {
+private fun <T> ChoiceGroup(
+    choices: List<Pair<T, String>>,
+    selected: T,
+    onSelect: (T) -> Unit,
+    enabled: Boolean = true,
+) {
     Column(modifier = Modifier.fillMaxWidth().selectableGroup()) {
         choices.forEach { (value, label) ->
             Row(
                 modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
                     .selectable(
                         selected = selected == value,
+                        enabled = enabled,
                         role = Role.RadioButton,
                         onClick = { onSelect(value) },
                     ).padding(horizontal = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                Text(label, modifier = Modifier.weight(1f))
+                Text(label, modifier = Modifier.weight(1f).alpha(if (enabled) 1f else 0.38f))
                 RadioButton(selected = selected == value, onClick = null)
             }
         }

@@ -10,6 +10,7 @@ import androidx.compose.runtime.setValue
 enum class RevivedUiMode { Miuix, Material }
 enum class RevivedThemeMode { System, Light, Dark }
 enum class RevivedThemePreset { Blue, Green, Purple }
+enum class RevivedEffectLevel { Off, Low, Medium, High }
 
 @Immutable
 data class RevivedThemePreference(
@@ -17,7 +18,13 @@ data class RevivedThemePreference(
     val mode: RevivedThemeMode = RevivedThemeMode.System,
     val preset: RevivedThemePreset = RevivedThemePreset.Blue,
     val enableLiquidGlass: Boolean = true,
-)
+    val glassLevel: RevivedEffectLevel = RevivedEffectLevel.Low,
+    val frostLevel: RevivedEffectLevel = RevivedEffectLevel.Medium,
+) {
+    val hasGlassEffects: Boolean
+        get() = enableLiquidGlass &&
+            (glassLevel != RevivedEffectLevel.Off || frostLevel != RevivedEffectLevel.Off)
+}
 
 /** 进程内可观察状态；使用当前应用的私有存储，不跨 QQ / 模块或进程同步。 */
 object RevivedThemeState {
@@ -38,6 +45,8 @@ object RevivedThemeState {
             mode = enumValue(values["theme_mode"], RevivedThemeMode.System),
             preset = enumValue(values["theme_preset"], RevivedThemePreset.Blue),
             enableLiquidGlass = values["liquid_glass"] as? Boolean ?: true,
+            glassLevel = enumValue(values["glass_level"], RevivedEffectLevel.Low),
+            frostLevel = enumValue(values["frost_level"], RevivedEffectLevel.Medium),
         )
         preferences = storage
     }
@@ -54,6 +63,12 @@ object RevivedThemeState {
     fun updateLiquidGlassEnabled(context: Context, value: Boolean) =
         update(context) { it.copy(enableLiquidGlass = value) }
 
+    fun updateGlassLevel(context: Context, value: RevivedEffectLevel) =
+        update(context) { it.copy(glassLevel = value) }
+
+    fun updateFrostLevel(context: Context, value: RevivedEffectLevel) =
+        update(context) { it.copy(frostLevel = value) }
+
     @Synchronized
     private fun update(
         context: Context,
@@ -67,6 +82,8 @@ object RevivedThemeState {
             .putString("theme_mode", next.mode.name)
             .putString("theme_preset", next.preset.name)
             .putBoolean("liquid_glass", next.enableLiquidGlass)
+            .putString("glass_level", next.glassLevel.name)
+            .putString("frost_level", next.frostLevel.name)
             .apply()
     }
 

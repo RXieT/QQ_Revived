@@ -174,7 +174,7 @@ internal fun AioChatScreen(controller: AioUiController) {
         var showPbDialog by remember { mutableStateOf(false) }
         var pbJsonText by remember { mutableStateOf("") }
         var previewMessage by remember { mutableStateOf<AioMessage?>(null) }
-        val enableGlass = currentRevivedThemePreference().enableLiquidGlass
+        val enableGlass = currentRevivedThemePreference().hasGlassEffects
         val chatBackgroundColor = MiuixTheme.colorScheme.secondaryVariant
         val topBarBackdrop = rememberLayerBackdrop {
             drawRect(chatBackgroundColor)

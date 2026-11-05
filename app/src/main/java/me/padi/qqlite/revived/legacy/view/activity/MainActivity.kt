@@ -62,6 +62,12 @@ class MainActivity : ComponentActivity(), App.ServiceStateListener {
                     },
                     onLiquidGlassChange = { enabled ->
                         RevivedThemeState.updateLiquidGlassEnabled(this@MainActivity, enabled)
+                    },
+                    onGlassLevelChange = { level ->
+                        RevivedThemeState.updateGlassLevel(this@MainActivity, level)
+                    },
+                    onFrostLevelChange = { level ->
+                        RevivedThemeState.updateFrostLevel(this@MainActivity, level)
                     }
                 )
             }

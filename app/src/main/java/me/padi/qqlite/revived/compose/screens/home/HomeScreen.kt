@@ -159,7 +159,7 @@ internal fun HomeScreen(controller: HomeUiController) {
                     profile = profile,
                     currentPage = pages.getOrNull(currentIndex),
                     windowInfo = windowInfo,
-                    enableLiquidGlass = themePreference.enableLiquidGlass,
+                    enableLiquidGlass = themePreference.hasGlassEffects,
                     surfaceColor = surfaceColor,
                     backdrop = liquidBackdrop,
                 )
@@ -209,7 +209,7 @@ internal fun HomeScreen(controller: HomeUiController) {
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
-                            .then(if (themePreference.enableLiquidGlass) Modifier.layerBackdrop(liquidBackdrop) else Modifier)
+                            .then(if (themePreference.hasGlassEffects) Modifier.layerBackdrop(liquidBackdrop) else Modifier)
                             .background(backgroundColor)
                             .padding(horizontal = windowInfo.contentPadding)
                     ) {
