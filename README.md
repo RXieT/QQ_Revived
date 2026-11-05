@@ -63,7 +63,7 @@ libxposed 的回调与热重载契约见 [API 102 源码](https://github.com/lib
 
 ### 本地构建
 
-需要 JDK 21、Android SDK Platform 37、Build Tools 37.0.0；Gradle 由仓库 Wrapper 下载。
+需要 JDK 21、Android SDK Platform 37.0（SDK 包名为 `platforms;android-37.0`）、Build Tools 37.0.0；Gradle 由仓库 Wrapper 下载。
 
 ```powershell
 .\gradlew.bat :app:assembleDebug
