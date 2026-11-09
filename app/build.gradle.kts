@@ -13,8 +13,8 @@ android {
         // Miuix blur / glass uses Android RuntimeShader (API 33+).
         minSdk = 33
         targetSdk = 37
-        versionCode = 102
-        versionName = "1.0.2"
+        versionCode = 103
+        versionName = "1.0.3-preview.1"
 
         ndk {
             abiFilters.addAll(

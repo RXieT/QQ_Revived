@@ -60,7 +60,7 @@ internal fun ProfileActionsPage(
             .overScrollVertical(),
         verticalArrangement = Arrangement.spacedBy(12.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
-        contentPadding = PaddingValues(if (windowInfo.useNavigationRail) 20.dp else 16.dp)
+        contentPadding = homeListContentPadding(if (windowInfo.useNavigationRail) 20.dp else 16.dp)
     ) {
         item(key = MODULE_SETTINGS_TITLE) {
             GridItem(
@@ -116,6 +116,9 @@ internal fun ProfileActionsPage(
         },
         onFrostLevelChange = { level ->
             RevivedThemeState.updateFrostLevel(context, level)
+        },
+        onFontScaleChange = { scale ->
+            RevivedThemeState.updateFontScale(context, scale)
         }
     )
 }

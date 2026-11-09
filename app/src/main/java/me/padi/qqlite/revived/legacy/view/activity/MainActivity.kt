@@ -68,6 +68,9 @@ class MainActivity : ComponentActivity(), App.ServiceStateListener {
                     },
                     onFrostLevelChange = { level ->
                         RevivedThemeState.updateFrostLevel(this@MainActivity, level)
+                    },
+                    onFontScaleChange = { scale ->
+                        RevivedThemeState.updateFontScale(this@MainActivity, scale)
                     }
                 )
             }

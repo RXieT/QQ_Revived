@@ -95,7 +95,7 @@ internal fun QZoneFeedPage(
             .fillMaxSize()
             .overScrollVertical(),
         state = listState,
-        contentPadding = PaddingValues(bottom = 16.dp),
+        contentPadding = homeListContentPadding(),
         verticalArrangement = Arrangement.spacedBy(windowInfo.listItemSpacing)
     ) {
         item(key = "qzone-top-spacer") {

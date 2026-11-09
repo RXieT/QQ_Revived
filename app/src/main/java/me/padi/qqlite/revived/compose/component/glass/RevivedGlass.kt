@@ -68,6 +68,8 @@ internal fun Modifier.revivedGlass(
             shape = shape,
             style = style,
             material = material,
+            // 小面积导航不叠加全分辨率噪声 pass，减少移动时的 GPU 合成开销。
+            noiseCoefficient = 0f,
             stroke = if (floating && effects.hasRefraction) GlassStrokes.forTheme(dark) else null,
             shading = effects.hasRefraction
         )

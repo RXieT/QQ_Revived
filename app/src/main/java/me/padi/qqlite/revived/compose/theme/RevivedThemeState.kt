@@ -20,6 +20,7 @@ data class RevivedThemePreference(
     val enableLiquidGlass: Boolean = true,
     val glassLevel: RevivedEffectLevel = RevivedEffectLevel.Low,
     val frostLevel: RevivedEffectLevel = RevivedEffectLevel.Medium,
+    val fontScale: Float = DEFAULT_FONT_SCALE,
 ) {
     val hasGlassEffects: Boolean
         get() = enableLiquidGlass &&
@@ -47,6 +48,9 @@ object RevivedThemeState {
             enableLiquidGlass = values["liquid_glass"] as? Boolean ?: true,
             glassLevel = enumValue(values["glass_level"], RevivedEffectLevel.Low),
             frostLevel = enumValue(values["frost_level"], RevivedEffectLevel.Medium),
+            fontScale = normalizeFontScale(
+                (values["font_scale"] as? Number)?.toFloat() ?: DEFAULT_FONT_SCALE
+            ),
         )
         preferences = storage
     }
@@ -69,6 +73,9 @@ object RevivedThemeState {
     fun updateFrostLevel(context: Context, value: RevivedEffectLevel) =
         update(context) { it.copy(frostLevel = value) }
 
+    fun updateFontScale(context: Context, value: Float) =
+        update(context) { it.copy(fontScale = normalizeFontScale(value)) }
+
     @Synchronized
     private fun update(
         context: Context,
@@ -84,6 +91,7 @@ object RevivedThemeState {
             .putBoolean("liquid_glass", next.enableLiquidGlass)
             .putString("glass_level", next.glassLevel.name)
             .putString("frost_level", next.frostLevel.name)
+            .putFloat("font_scale", next.fontScale)
             .apply()
     }
 

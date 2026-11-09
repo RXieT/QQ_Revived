@@ -23,6 +23,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import me.padi.qqlite.revived.compose.component.glass.GlassSettingsPreview
 import me.padi.qqlite.revived.compose.theme.RevivedEffectLevel
 import me.padi.qqlite.revived.compose.theme.RevivedThemeMode
 import me.padi.qqlite.revived.compose.theme.RevivedThemePreference
@@ -49,6 +50,7 @@ fun ModuleSettingsScreen(
     onLiquidGlassChange: (Boolean) -> Unit,
     onGlassLevelChange: (RevivedEffectLevel) -> Unit,
     onFrostLevelChange: (RevivedEffectLevel) -> Unit,
+    onFontScaleChange: (Float) -> Unit,
 ) {
     Column(
         modifier = Modifier.fillMaxSize()
@@ -91,7 +93,7 @@ fun ModuleSettingsScreen(
         ThemeSettings(
             themePreference, onUiModeChange, onThemeModeChange,
             onThemePresetChange, onLiquidGlassChange,
-            onGlassLevelChange, onFrostLevelChange,
+            onGlassLevelChange, onFrostLevelChange, onFontScaleChange,
         )
     }
 }
@@ -107,6 +109,7 @@ fun ModuleThemeSettingsSheet(
     onLiquidGlassChange: (Boolean) -> Unit,
     onGlassLevelChange: (RevivedEffectLevel) -> Unit,
     onFrostLevelChange: (RevivedEffectLevel) -> Unit,
+    onFontScaleChange: (Float) -> Unit,
 ) {
     WindowBottomSheet(
         show = show,
@@ -121,7 +124,7 @@ fun ModuleThemeSettingsSheet(
             ThemeSettings(
                 themePreference, onUiModeChange, onThemeModeChange,
                 onThemePresetChange, onLiquidGlassChange,
-                onGlassLevelChange, onFrostLevelChange,
+                onGlassLevelChange, onFrostLevelChange, onFontScaleChange,
             )
             TextButton(
                 text = "完成",
@@ -141,6 +144,7 @@ private fun ThemeSettings(
     onLiquidGlassChange: (Boolean) -> Unit,
     onGlassLevelChange: (RevivedEffectLevel) -> Unit,
     onFrostLevelChange: (RevivedEffectLevel) -> Unit,
+    onFontScaleChange: (Float) -> Unit,
 ) {
     SettingsSection("界面风格") {
         ChoiceGroup(
@@ -149,6 +153,21 @@ private fun ThemeSettings(
             onSelect = onUiModeChange,
         )
         Text("应用于支持风格切换的模块界面；设置页使用 Miuix 控件。")
+    }
+    SettingsSection("字体大小") {
+        Text("在系统字号基础上缩放，默认 110%；100% 跟随系统字号。")
+        ChoiceGroup(
+            choices = listOf(
+                0.85f to "85%",
+                1f to "跟随系统100%",
+                1.1f to "110%（默认）",
+                1.25f to "125%",
+                1.5f to "150%",
+            ),
+            selected = preference.fontScale,
+            onSelect = onFontScaleChange,
+        )
+        Text("字号预览：你好，QQ Revived！Aa 123", fontSize = 16.sp)
     }
     SettingsSection("深浅色") {
         ChoiceGroup(
@@ -179,7 +198,7 @@ private fun ThemeSettings(
                     value = preference.enableLiquidGlass,
                     role = Role.Switch,
                     onValueChange = onLiquidGlassChange,
-                ).padding(horizontal = 8.dp),
+                ).padding(horizontal = 8.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
@@ -208,6 +227,8 @@ private fun ThemeSettings(
             enabled = preference.enableLiquidGlass,
         )
         Text("玻璃控制折射与高光，磨砂控制背景模糊；两种等级可独立组合。")
+        Text("优先流畅：玻璃关闭、磨砂低。两项关闭可停止背景采样；高等级不保证在所有设备上流畅。")
+        GlassSettingsPreview()
     }
 }
 
@@ -240,7 +261,7 @@ private fun <T> ChoiceGroup(
                         enabled = enabled,
                         role = Role.RadioButton,
                         onClick = { onSelect(value) },
-                    ).padding(horizontal = 8.dp),
+                    ).padding(horizontal = 8.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {

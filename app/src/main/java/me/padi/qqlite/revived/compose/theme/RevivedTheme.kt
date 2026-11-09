@@ -11,11 +11,15 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Density
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.theme.darkColorScheme
 import top.yukonga.miuix.kmp.theme.lightColorScheme
 
 private val LocalRevivedThemePreference = staticCompositionLocalOf { RevivedThemePreference() }
+// 嵌套主题复用最外层未缩放的 Density，避免重复乘以模块倍率。
+private val LocalRevivedBaseDensity = staticCompositionLocalOf<Density?> { null }
 
 @Composable
 fun currentRevivedThemePreference(): RevivedThemePreference = LocalRevivedThemePreference.current
@@ -28,6 +32,10 @@ fun RevivedTheme(content: @Composable () -> Unit) {
     // 在子树读取偏好之前完成首次加载；状态对象不持有 Activity。
     RevivedThemeState.initialize(LocalContext.current)
     val preference = RevivedThemeState.preference
+    val baseDensity = LocalRevivedBaseDensity.current ?: LocalDensity.current
+    val scaledDensity = remember(baseDensity.density, baseDensity.fontScale, preference.fontScale) {
+        Density(baseDensity.density, effectiveFontScale(baseDensity.fontScale, preference.fontScale))
+    }
     val dark = when (preference.mode) {
         RevivedThemeMode.System -> isSystemInDarkTheme()
         RevivedThemeMode.Light -> false
@@ -83,7 +91,11 @@ fun RevivedTheme(content: @Composable () -> Unit) {
             onErrorContainer = colors.onErrorContainer,
         )
     }
-    CompositionLocalProvider(LocalRevivedThemePreference provides preference) {
+    CompositionLocalProvider(
+        LocalRevivedThemePreference provides preference,
+        LocalRevivedBaseDensity provides baseDensity,
+        LocalDensity provides scaledDensity,
+    ) {
         MaterialTheme(colorScheme = materialColors) {
             MiuixTheme(colors = colors, content = content)
         }

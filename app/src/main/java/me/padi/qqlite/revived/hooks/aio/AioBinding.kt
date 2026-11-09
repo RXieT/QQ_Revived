@@ -673,14 +673,17 @@ internal class AioBinding(
             .takeLast(MAX_RENDERED_MESSAGES)
         val visibleKeys = nextRows.mapTo(HashSet()) { it.key }
         messageViewRefs.keys.retainAll(visibleKeys)
+        val messagesChanged = !currentState.messages.sameMessageUi(nextRows)
         updateState { state ->
-            if (!state.loading && !state.loadingOlder && state.messages.sameMessageUi(nextRows)) {
+            if (!state.loading && !state.loadingOlder && !messagesChanged) {
                 state
             } else {
                 state.copy(messages = nextRows, loading = false, loadingOlder = false)
             }
         }
-        publishMessages(nextRows)
+        if (messagesChanged) {
+            publishMessages(nextRows)
+        }
         triggerPendingVoiceAutoPlay(nextRows)
         schedulePendingMediaRefresh(nextRows)
         requestMissingMemberInfo(nextRows)
@@ -700,14 +703,17 @@ internal class AioBinding(
             .takeLast(MAX_RENDERED_MESSAGES)
         val visibleKeys = nextRows.mapTo(HashSet()) { it.key }
         messageViewRefs.keys.retainAll(visibleKeys)
+        val messagesChanged = !currentState.messages.sameMessageUi(nextRows)
         updateState { state ->
-            if (!state.loading && !state.loadingOlder && state.messages.sameMessageUi(nextRows)) {
+            if (!state.loading && !state.loadingOlder && !messagesChanged) {
                 state
             } else {
                 state.copy(messages = nextRows, loading = false, loadingOlder = false)
             }
         }
-        publishMessages(nextRows)
+        if (messagesChanged) {
+            publishMessages(nextRows)
+        }
         triggerPendingVoiceAutoPlay(nextRows)
         schedulePendingMediaRefresh(nextRows)
         requestMissingMemberInfo(nextRows)

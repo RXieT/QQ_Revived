@@ -51,8 +51,7 @@ internal fun RecentMessagesPage(
         EmptyHomePage("等待消息数据")
         return
     }
-    val pinnedRows = rows.filter { it.pinned }
-    val recentRows = rows.filterNot { it.pinned }
+    val (pinnedRows, recentRows) = remember(rows) { rows.partition { it.pinned } }
     var pinnedExpanded by remember { mutableStateOf(true) }
     val listState = rememberHomeListState(uiState.recentScroll)
     PersistListScroll(listState, controller::updateRecentScroll)
@@ -61,7 +60,7 @@ internal fun RecentMessagesPage(
             .fillMaxSize()
             .overScrollVertical(),
         state = listState,
-        contentPadding = PaddingValues(bottom = 16.dp),
+        contentPadding = homeListContentPadding(),
         verticalArrangement = Arrangement.spacedBy(windowInfo.listItemSpacing)
     ) {
         item(key = "recent-top-spacer") {
@@ -74,21 +73,13 @@ internal fun RecentMessagesPage(
                     onToggle = { pinnedExpanded = !pinnedExpanded }
                 )
             }
-            item(key = "pinned-content") {
-                    AnimatedVisibility(
-                        visible = pinnedExpanded,
-                        enter = expandVertically() + fadeIn(),
-                        exit = shrinkVertically() + fadeOut()
-                    ) {
-                        Column(verticalArrangement = Arrangement.spacedBy(windowInfo.listItemSpacing)) {
-                            pinnedRows.forEach { row ->
-                                RecentMessageRow(
-                                    controller = controller,
-                                row = row,
-                                icon = Icons.Filled.PushPin
-                            )
-                        }
-                    }
+            if (pinnedExpanded) {
+                items(pinnedRows, key = { "pinned:${it.key}" }) { row ->
+                    RecentMessageRow(
+                        controller = controller,
+                        row = row,
+                        icon = Icons.Filled.PushPin
+                    )
                 }
             }
         }

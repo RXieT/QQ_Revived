@@ -34,6 +34,9 @@ import androidx.compose.material.icons.filled.Widgets
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -143,13 +146,13 @@ internal fun HomeScreen(controller: HomeUiController) {
                 HomeWindowInfo.create(maxWidth, maxHeight)
             }
             LaunchedEffect(currentIndex, pages.size) {
-                if (pages.isNotEmpty() && pagerState.currentPage != currentIndex) {
+                if (pages.isNotEmpty() && !pagerState.isScrollInProgress && pagerState.settledPage != currentIndex) {
                     pagerState.animateScrollToPage(currentIndex)
                 }
             }
             LaunchedEffect(pagerState, pages.size) {
                 if (pages.isEmpty()) return@LaunchedEffect
-                snapshotFlow { pagerState.currentPage }.distinctUntilChanged().collect { page ->
+                snapshotFlow { pagerState.settledPage }.distinctUntilChanged().collect { page ->
                     controller.selectPage(page)
                 }
             }
@@ -168,7 +171,7 @@ internal fun HomeScreen(controller: HomeUiController) {
                 if (!windowInfo.useNavigationRail) {
                     BottomBar(
                         items = bottomBarItems,
-                        selectedIndex = currentIndex,
+                        selectedIndex = pagerState.currentPage,
                         onSelect = { index ->
                             scope.launch {
                                 pagerState.animateScrollToPage(index)
@@ -176,12 +179,15 @@ internal fun HomeScreen(controller: HomeUiController) {
                         },
                         surfaceColor = surfaceColor,
                         backdrop = liquidBackdrop,
+                        pageProgress = { pagerState.currentPage + pagerState.currentPageOffsetFraction }
                     )
                 }
             }
             val content: @Composable (PaddingValues) -> Unit = { innerPadding ->
-                val topContentInset =
-                    (innerPadding.calculateTopPadding() - 18.dp).coerceAtLeast(0.dp)
+                val listInsets = PaddingValues(
+                    top = innerPadding.calculateTopPadding(),
+                    bottom = innerPadding.calculateBottomPadding()
+                )
                 Row(
                     modifier = Modifier
                         .fillMaxSize()
@@ -195,7 +201,7 @@ internal fun HomeScreen(controller: HomeUiController) {
                     if (windowInfo.useNavigationRail) {
                         SideRail(
                             items = bottomBarItems,
-                            selectedIndex = currentIndex,
+                            selectedIndex = pagerState.currentPage,
                             onSelect = { index ->
                                 scope.launch {
                                     pagerState.animateScrollToPage(index)
@@ -219,7 +225,8 @@ internal fun HomeScreen(controller: HomeUiController) {
                             HorizontalPager(
                                 state = pagerState,
                                 modifier = Modifier.fillMaxSize(),
-                                beyondViewportPageCount = 3,
+                                // 不将四页全部保留在 Composition 中，减少常驻 View/图片。
+                                beyondViewportPageCount = 0,
                                 userScrollEnabled = true
                             ) { pageIndex ->
                                 Box(modifier = Modifier.fillMaxWidth()) {
@@ -229,13 +236,14 @@ internal fun HomeScreen(controller: HomeUiController) {
                                             .fillMaxWidth()
                                             .align(Alignment.TopCenter)
                                     ) {
-                                        Spacer(modifier = Modifier.height(topContentInset))
-                                        HomeContent(
-                                            controller = controller,
-                                            uiState = uiState,
-                                            currentPage = pages.getOrNull(pageIndex),
-                                            windowInfo = windowInfo
-                                        )
+                                        CompositionLocalProvider(LocalHomeContentInsets provides listInsets) {
+                                            HomeContent(
+                                                controller = controller,
+                                                uiState = uiState,
+                                                currentPage = pages.getOrNull(pageIndex),
+                                                windowInfo = windowInfo
+                                            )
+                                        }
                                     }
                                 }
                             }
@@ -342,7 +350,6 @@ private fun HomeContent(
         return
     }
     Column(modifier = Modifier.fillMaxSize()) {
-        Spacer(Modifier.height(16.dp))
         when (currentPage.title) {
             "消息" -> RecentMessagesPage(controller, uiState, windowInfo)
             "联系人" -> ContactsPage(controller, uiState, windowInfo)
@@ -528,14 +535,15 @@ internal fun rememberHomeListState(snapshot: ScrollSnapshot): LazyListState {
 internal fun PersistListScroll(
     listState: LazyListState, onChanged: (ScrollSnapshot) -> Unit
 ) {
+    val currentOnChanged by rememberUpdatedState(onChanged)
+    fun snapshot() = ScrollSnapshot(listState.firstVisibleItemIndex, listState.firstVisibleItemScrollOffset)
     LaunchedEffect(listState) {
-        snapshotFlow {
-            ScrollSnapshot(
-                listState.firstVisibleItemIndex, (listState.firstVisibleItemScrollOffset / 24) * 24
-            )
-        }.distinctUntilChanged().collect { snapshot ->
-            onChanged(snapshot)
+        snapshotFlow { listState.isScrollInProgress }.distinctUntilChanged().collect { scrolling ->
+            if (!scrolling) currentOnChanged(snapshot())
         }
+    }
+    DisposableEffect(listState) {
+        onDispose { currentOnChanged(snapshot()) }
     }
 }
 
@@ -568,44 +576,36 @@ internal fun HomeListRow(
 
         ) {
         Row(
-            modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp), verticalAlignment = Alignment.CenterVertically
         ) {
-            HostAvatar(controller, avatar, leading)
+            HostAvatar(controller, avatar, leading, sizeDp = 48)
             Column(
                 modifier = Modifier
                     .padding(start = 12.dp)
                     .weight(1f)
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        icon,
-                        contentDescription = null,
-                        tint = MiuixTheme.colorScheme.primary,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Text(
-                        text = title.ifBlank { "未命名" },
-                        color = MiuixTheme.colorScheme.onSurface,
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.padding(start = 6.dp)
-                    )
-                }
                 Text(
-                    text = subtitle,
-                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                    fontSize = 12.sp,
+                    text = title.ifBlank { "未命名" },
+                    color = MiuixTheme.colorScheme.onSurface,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.SemiBold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
+                Text(
+                    text = subtitle,
+                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                    fontSize = 13.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(top = 3.dp)
+                )
             }
-            Column(horizontalAlignment = Alignment.End) {
+            Column(modifier = Modifier.padding(start = 8.dp), horizontalAlignment = Alignment.End) {
                 Text(
                     text = meta,
                     color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                    fontSize = 10.sp
+                    fontSize = 11.sp
                 )
                 if (badge != null) {
                     MiuixBadgePill(text = badge, modifier = Modifier.padding(top = 5.dp))

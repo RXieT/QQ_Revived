@@ -42,6 +42,7 @@ import me.padi.qqlite.revived.compose.screens.home.HomeListRow
 import me.padi.qqlite.revived.compose.screens.home.HomeUiController
 import me.padi.qqlite.revived.compose.screens.home.PersistListScroll
 import me.padi.qqlite.revived.compose.screens.home.rememberHomeListState
+import me.padi.qqlite.revived.compose.screens.home.homeListContentPadding
 import me.padi.qqlite.revived.shared.model.home.ContactRow
 import me.padi.qqlite.revived.shared.model.home.HomeWindowInfo
 import me.padi.qqlite.revived.shared.model.home.HomeUiState
@@ -95,7 +96,7 @@ internal fun ContactsPage(
                 .fillMaxSize()
                 .overScrollVertical(),
             state = listState,
-            contentPadding = PaddingValues(bottom = 16.dp),
+            contentPadding = homeListContentPadding(),
             verticalArrangement = Arrangement.spacedBy(windowInfo.listItemSpacing)
         ) {
             item(key = "contacts-top-spacer") {

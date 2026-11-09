@@ -16,15 +16,18 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -43,12 +46,14 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.InsertDriveFile
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.DataObject
 import androidx.compose.material.icons.filled.EmojiEmotions
 import androidx.compose.material.icons.filled.Image
@@ -70,7 +75,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -79,6 +86,8 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
@@ -170,10 +179,33 @@ internal fun AioChatScreen(controller: AioUiController) {
     }
 
     RevivedTheme {
+        var activePanel by remember { mutableStateOf(AioActivePanel.None) }
         var showEmojiSheet by remember { mutableStateOf(false) }
+        var selectedEmotionCategoryKey by remember { mutableStateOf<String?>(null) }
+        val keyboard = LocalSoftwareKeyboardController.current
+        val focusManager = LocalFocusManager.current
+        val imeVisible = WindowInsets.ime.getBottom(density) > 0
+        val availableHeightDp = with(density) {
+            (containerHeightPx - hostWindowMetrics.statusBarTopPx - hostWindowMetrics.navigationBarBottomPx)
+                .coerceAtLeast(0).toDp().value
+        }
+        val panelHeight = aioAttachmentPanelHeight(availableHeightDp).dp
+        fun togglePanel(panel: AioActivePanel) {
+            focusManager.clearFocus(force = true)
+            keyboard?.hide()
+            activePanel = if (activePanel == panel) AioActivePanel.None else panel
+        }
+        val closePanelOrNavigateBack: () -> Unit = {
+            if (activePanel != AioActivePanel.None) activePanel = AioActivePanel.None
+            else controller.navigateBack()
+        }
         var showPbDialog by remember { mutableStateOf(false) }
         var pbJsonText by remember { mutableStateOf("") }
         var previewMessage by remember { mutableStateOf<AioMessage?>(null) }
+        AioPanelBackCallback(
+            enabled = activePanel != AioActivePanel.None && !showEmojiSheet && !showPbDialog && previewMessage == null,
+            onClose = { activePanel = AioActivePanel.None }
+        )
         val enableGlass = currentRevivedThemePreference().hasGlassEffects
         val chatBackgroundColor = MiuixTheme.colorScheme.secondaryVariant
         val topBarBackdrop = rememberLayerBackdrop {
@@ -188,25 +220,69 @@ internal fun AioChatScreen(controller: AioUiController) {
                 controller = controller,
                 windowInfo = windowInfo,
                 backdrop = topBarBackdrop,
+                onBackClick = closePanelOrNavigateBack,
             )
         }, bottomBar = {
-            AioInputBar(
-                draft = uiState.draft,
-                onDraftChanged = controller::updateDraft,
-                onEmojiClick = { showEmojiSheet = true },
-                onPbClick = { showPbDialog = true },
-                onAlbumClick = controller::pickImageFromAlbum,
-                onCameraClick = controller::captureImage,
-                onSendClick = controller::sendDraft,
-                windowInfo = windowInfo
-            )
+            Column(
+                Modifier.fillMaxWidth().background(MiuixTheme.colorScheme.surface)
+                    .imePadding().hostNavigationBarsPadding()
+            ) {
+                AioInputBar(
+                    draft = uiState.draft,
+                    onDraftChanged = controller::updateDraft,
+                    onEmojiClick = { togglePanel(AioActivePanel.Emoji) },
+                    onPbClick = {
+                        activePanel = AioActivePanel.None
+                        focusManager.clearFocus(force = true)
+                        keyboard?.hide()
+                        showPbDialog = true
+                    },
+                    onAlbumClick = { togglePanel(AioActivePanel.Images) },
+                    onCameraClick = {
+                        activePanel = AioActivePanel.None
+                        focusManager.clearFocus(force = true)
+                        keyboard?.hide()
+                        controller.captureImage()
+                    },
+                    onSendClick = controller::sendDraft,
+                    onInputFocused = {
+                        activePanel = AioActivePanel.None
+                        keyboard?.show()
+                    },
+                    activePanel = activePanel,
+                    windowInfo = windowInfo
+                )
+                AioAttachmentPanel(
+                    activePanel = activePanel,
+                    imeVisible = imeVisible,
+                    height = panelHeight,
+                    controller = controller,
+                    onFullAlbum = {
+                        activePanel = AioActivePanel.None
+                        focusManager.clearFocus(force = true)
+                        keyboard?.hide()
+                        controller.pickImageFromAlbum()
+                    },
+                    emojiContent = {
+                        AioInlineEmojiPanel(
+                            categories = uiState.emotionCategories,
+                            selectedCategoryKey = selectedEmotionCategoryKey,
+                            onCategorySelected = { selectedEmotionCategoryKey = it },
+                            controller = controller,
+                            windowInfo = windowInfo,
+                            onExpand = { showEmojiSheet = true },
+                            onEmotionClick = { controller.clickEmotion(it) }
+                        )
+                    }
+                )
+            }
         }) { padding ->
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(chatBackgroundColor)
                     .then(if (enableGlass) Modifier.layerBackdrop(topBarBackdrop) else Modifier)
-                    .padding(padding)
+                    .padding(bottom = padding.calculateBottomPadding())
             ) {
                 if (uiState.loading && pagingMessages.itemCount == 0) {
                     AioLoading()
@@ -225,13 +301,14 @@ internal fun AioChatScreen(controller: AioUiController) {
                             controller.longClickMessage(message)
                         },
                         windowInfo = windowInfo,
+                        topContentInset = padding.calculateTopPadding(),
                         modifier = Modifier.fillMaxSize()
                     )
                 }
             }
         }
-        LaunchedEffect(showEmojiSheet) {
-            if (showEmojiSheet) {
+        LaunchedEffect(activePanel == AioActivePanel.Emoji, showEmojiSheet) {
+            if (activePanel == AioActivePanel.Emoji || showEmojiSheet) {
                 controller.requestEmotionCategories()
             }
         }
@@ -241,10 +318,9 @@ internal fun AioChatScreen(controller: AioUiController) {
             controller = controller,
             onDismissRequest = { showEmojiSheet = false },
             windowInfo = windowInfo,
-            onEmotionClick = { item ->
-                controller.clickEmotion(item)
-                showEmojiSheet = false
-            })
+            selectedCategoryKey = selectedEmotionCategoryKey,
+            onCategorySelected = { selectedEmotionCategoryKey = it },
+            onEmotionClick = { controller.clickEmotion(it) })
         PbSendDialog(
             show = showPbDialog,
             text = pbJsonText,
@@ -274,6 +350,7 @@ private fun AioTopBar(
     controller: AioUiController,
     windowInfo: AioWindowInfo,
     backdrop: Backdrop,
+    onBackClick: () -> Unit,
 ) {
     val topBarSurfaceColor = MiuixTheme.colorScheme.surface
     Column(
@@ -307,7 +384,7 @@ private fun AioTopBar(
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 IconButton(
-                    onClick = controller::navigateBack,
+                    onClick = onBackClick,
                     minWidth = 42.dp,
                     minHeight = 42.dp,
                     cornerRadius = 21.dp,
@@ -435,6 +512,7 @@ private fun AioMessageList(
     onPreviewMessage: (AioMessage) -> Unit,
     onLongPressMessage: (AioMessage, IntOffset) -> Unit,
     windowInfo: AioWindowInfo,
+    topContentInset: androidx.compose.ui.unit.Dp = 0.dp,
     modifier: Modifier = Modifier
 ) {
     val snapshotMessages = messages.itemSnapshotList.items
@@ -444,6 +522,16 @@ private fun AioMessageList(
     }
 
     val listState = rememberLazyListState()
+    // 滑动中离开也保存最终已布局位置；只读当前 layoutInfo，不捕获分页消息快照。
+    DisposableEffect(listState, controller) {
+        onDispose {
+            listState.layoutInfo.visibleItemsInfo.firstOrNull {
+                it.key != "aio-load-older" && it.key != "aio-bottom-spacer"
+            }?.let { item ->
+                controller.updateScrollSnapshot(item.key as? String, item.offset)
+            }
+        }
+    }
     var didInitialScroll by remember { mutableStateOf(false) }
     val restoreMessageKey = remember { initialFirstVisibleMessageKey }
     val restoreMessageOffset = remember { initialFirstVisibleMessageOffset }
@@ -515,14 +603,13 @@ private fun AioMessageList(
 
     LaunchedEffect(listState, didInitialScroll, messages.itemCount) {
         if (!didInitialScroll || messages.itemCount == 0) return@LaunchedEffect
-        snapshotFlow {
-            listState.layoutInfo.visibleItemsInfo.firstOrNull { item ->
-                item.key != "aio-load-older" && item.key != "aio-bottom-spacer"
-            }?.let { item ->
-                (item.key as? String) to item.offset
+        snapshotFlow { listState.isScrollInProgress }.distinctUntilChanged().collect { scrolling ->
+            if (!scrolling) {
+                val item = listState.layoutInfo.visibleItemsInfo.firstOrNull {
+                    it.key != "aio-load-older" && it.key != "aio-bottom-spacer"
+                }
+                controller.updateScrollSnapshot(item?.key as? String, item?.offset ?: 0)
             }
-        }.distinctUntilChanged().collect { snapshot ->
-            controller.updateScrollSnapshot(snapshot?.first, snapshot?.second ?: 0)
         }
     }
 
@@ -563,8 +650,10 @@ private fun AioMessageList(
         modifier = modifier,
         state = listState,
         contentPadding = PaddingValues(
-            horizontal = windowInfo.listHorizontalPadding,
-            vertical = windowInfo.listVerticalPadding
+            start = windowInfo.listHorizontalPadding,
+            end = windowInfo.listHorizontalPadding,
+            top = topContentInset + windowInfo.listVerticalPadding,
+            bottom = windowInfo.listVerticalPadding
         ),
         verticalArrangement = Arrangement.spacedBy(windowInfo.listItemSpacing)
     ) {
@@ -909,7 +998,7 @@ private fun TextMessageContent(message: AioMessage, contentColor: Color) {
         text = message.text,
         color = contentColor,
         style = MiuixTheme.textStyles.main,
-        fontSize = 15.sp
+        fontSize = 16.sp
     )
 }
 
@@ -1606,156 +1695,76 @@ private fun AioInputBar(
     onAlbumClick: () -> Unit,
     onCameraClick: () -> Unit,
     onSendClick: () -> Unit,
+    onInputFocused: () -> Unit,
+    activePanel: AioActivePanel,
     windowInfo: AioWindowInfo,
 ) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(MiuixTheme.colorScheme.surface)
-            .imePadding()
-            .hostNavigationBarsPadding()
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = windowInfo.inputHorizontalPadding, vertical = 4.dp),
+        verticalArrangement = Arrangement.spacedBy(2.dp)
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .widthIn(max = windowInfo.emojiSheetMaxWidth)
-                .align(Alignment.Center)
-                .padding(
-                    horizontal = windowInfo.inputHorizontalPadding,
-                    vertical = windowInfo.inputVerticalPadding
-                ),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.Bottom,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            BasicTextField(
+                value = draft,
+                onValueChange = onDraftChanged,
+                modifier = Modifier.weight(1f)
+                    .onFocusChanged { if (it.isFocused) onInputFocused() }
+                    .heightIn(min = 42.dp, max = windowInfo.inputMaxHeight.coerceAtLeast(64.dp))
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(MiuixTheme.colorScheme.surfaceVariant)
+                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                singleLine = false,
+                minLines = 1,
+                maxLines = 4,
+                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
+                textStyle = MiuixTheme.textStyles.main.copy(fontSize = 16.sp, color = MiuixTheme.colorScheme.onSurface),
+                cursorBrush = SolidColor(MiuixTheme.colorScheme.primary),
+                decorationBox = { innerTextField ->
+                    Box(contentAlignment = Alignment.CenterStart) {
+                        if (draft.isEmpty()) Text("消息", fontSize = 16.sp, color = MiuixTheme.colorScheme.onSurfaceVariantSummary)
+                        innerTextField()
+                    }
+                }
+            )
+            Button(
+                onClick = onSendClick,
+                enabled = draft.isNotBlank(),
+                minWidth = 44.dp,
+                minHeight = 44.dp,
+                cornerRadius = 16.dp,
+                insideMargin = PaddingValues(0.dp),
+                colors = ButtonDefaults.buttonColorsPrimary()
             ) {
-                MiniActionChip(
-                    icon = Icons.Filled.Image,
-                    label = "相册",
-                    onClick = onAlbumClick,
-                    modifier = Modifier.weight(1f)
-                )
-                MiniActionChip(
-                    icon = Icons.Filled.Videocam,
-                    label = "相机",
-                    onClick = onCameraClick,
-                    modifier = Modifier.weight(1f)
-                )
+                Icon(Icons.AutoMirrored.Filled.Send, "发送", tint = MiuixTheme.colorScheme.onPrimary, modifier = Modifier.size(20.dp))
             }
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.Bottom
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(44.dp)
-                        .clip(RoundedCornerShape(22.dp))
-                        .background(MiuixTheme.colorScheme.surfaceVariant)
-                        .combinedClickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null,
-                            onClick = onEmojiClick,
-                            onLongClick = {}
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.EmojiEmotions,
-                        contentDescription = "表情",
-                        tint = MiuixTheme.colorScheme.onSurface,
-                        modifier = Modifier.size(22.dp)
-                    )
-                }
-                IconButton(
-                    onClick = onPbClick,
-                    minWidth = 44.dp,
-                    minHeight = 44.dp,
-                    cornerRadius = 22.dp,
-                    backgroundColor = MiuixTheme.colorScheme.surfaceVariant,
-                    modifier = Modifier.padding(start = 8.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.DataObject,
-                        contentDescription = "ProtoBuf",
-                        tint = MiuixTheme.colorScheme.onSurface,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-                TextField(
-                    value = draft,
-                    onValueChange = onDraftChanged,
-                    modifier = Modifier
-                        .weight(1f)
-                        .padding(start = 8.dp, end = 8.dp)
-                        .heightIn(min = 44.dp, max = windowInfo.inputMaxHeight),
-                    insideMargin = DpSize(13.dp, 10.dp),
-                    cornerRadius = 22.dp,
-                    label = "消息",
-                    useLabelAsPlaceholder = true,
-                    singleLine = false,
-                    minLines = 1,
-                    maxLines = 4,
-                    keyboardOptions = KeyboardOptions(
-                        capitalization = KeyboardCapitalization.Sentences
-                    ),
-                    textStyle = MiuixTheme.textStyles.main.copy(fontSize = 14.sp)
-                )
-                Button(
-                    onClick = onSendClick,
-                    enabled = draft.isNotBlank(),
-                    minWidth = 44.dp,
-                    minHeight = 44.dp,
-                    cornerRadius = 22.dp,
-                    insideMargin = PaddingValues(0.dp),
-                    colors = ButtonDefaults.buttonColorsPrimary()
-                ) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.Send,
-                        contentDescription = "发送",
-                        tint = MiuixTheme.colorScheme.onPrimary,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-            }
+        }
+        Row(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            AioToolButton(Icons.Filled.EmojiEmotions, "表情", activePanel == AioActivePanel.Emoji, onEmojiClick)
+            AioToolButton(Icons.Filled.Image, "最近图片", activePanel == AioActivePanel.Images, onAlbumClick)
+            AioToolButton(Icons.Filled.CameraAlt, "相机", false, onCameraClick)
+            AioToolButton(Icons.Filled.DataObject, "ProtoBuf", false, onPbClick)
         }
     }
 }
 
 @Composable
-private fun MiniActionChip(
-    icon: ImageVector,
-    label: String,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Row(
-        modifier = modifier
-            .clip(RoundedCornerShape(18.dp))
-            .background(MiuixTheme.colorScheme.surfaceVariant.copy(alpha = 0.88f))
-            .combinedClickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null,
-                onClick = onClick,
-                onLongClick = {}
-            )
-            .padding(horizontal = 12.dp, vertical = 9.dp),
-        horizontalArrangement = Arrangement.Center,
-        verticalAlignment = Alignment.CenterVertically
+private fun AioToolButton(icon: ImageVector, label: String, selected: Boolean, onClick: () -> Unit) {
+    IconButton(
+        onClick = onClick,
+        minWidth = 40.dp,
+        minHeight = 38.dp,
+        cornerRadius = 12.dp,
+        backgroundColor = if (selected) MiuixTheme.colorScheme.surfaceVariant else Color.Transparent
     ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = label,
-            tint = MiuixTheme.colorScheme.onSurface,
-            modifier = Modifier.size(18.dp)
-        )
-        Spacer(modifier = Modifier.width(8.dp))
-        Text(
-            text = label,
-            style = MiuixTheme.textStyles.main.copy(fontSize = 13.sp),
-            color = MiuixTheme.colorScheme.onSurface
-        )
+        Icon(icon, label, tint = if (selected) MiuixTheme.colorScheme.primary else MiuixTheme.colorScheme.onSurface, modifier = Modifier.size(22.dp))
     }
 }
 
@@ -1876,12 +1885,53 @@ private fun AioLongPressMenuPopup(
 }
 
 @Composable
+private fun AioInlineEmojiPanel(
+    categories: List<AioEmotionCategory>,
+    selectedCategoryKey: String?,
+    onCategorySelected: (String) -> Unit,
+    controller: AioUiController,
+    windowInfo: AioWindowInfo,
+    onExpand: () -> Unit,
+    onEmotionClick: (AioEmotionItem) -> Unit
+) {
+    val visibleCategories = categories.ifEmpty { listOf(AioEmotionCategory("loading", "表情", loading = true)) }
+    val category = visibleCategories.firstOrNull { it.key == selectedCategoryKey } ?: visibleCategories.first()
+    Column(Modifier.fillMaxSize().padding(horizontal = 8.dp)) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                Modifier.weight(1f).horizontalScroll(rememberScrollState()),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                visibleCategories.forEach { tab ->
+                    Box(
+                        Modifier.clip(RoundedCornerShape(8.dp))
+                            .background(if (tab.key == category.key) MiuixTheme.colorScheme.surfaceVariant else Color.Transparent)
+                    ) {
+                        PanelTextAction(tab.title, { onCategorySelected(tab.key) })
+                    }
+                }
+            }
+            PanelTextAction("展开", onExpand)
+        }
+        AioEmojiCategoryGrid(
+            category = category,
+            controller = controller,
+            windowInfo = windowInfo,
+            modifier = Modifier.fillMaxWidth().weight(1f),
+            onEmotionClick = onEmotionClick
+        )
+    }
+}
+
+@Composable
 private fun AioEmojiSheet(
     show: Boolean,
     categories: List<AioEmotionCategory>,
     controller: AioUiController,
     onDismissRequest: () -> Unit,
     windowInfo: AioWindowInfo,
+    selectedCategoryKey: String?,
+    onCategorySelected: (String) -> Unit,
     onEmotionClick: (AioEmotionItem) -> Unit
 ) {
     val density = LocalDensity.current
@@ -1912,12 +1962,7 @@ private fun AioEmojiSheet(
             listOf(AioEmotionCategory("loading", "表情", loading = true))
         }
         val tabs = visibleCategories.map { it.title }
-        var selectedTabIndex by remember(show) { mutableIntStateOf(0) }
-        LaunchedEffect(visibleCategories.size, selectedTabIndex) {
-            if (selectedTabIndex >= visibleCategories.size) {
-                selectedTabIndex = 0
-            }
-        }
+        val selectedTabIndex = visibleCategories.indexOfFirst { it.key == selectedCategoryKey }.coerceAtLeast(0)
 
         Column(
             modifier = Modifier
@@ -1934,7 +1979,7 @@ private fun AioEmojiSheet(
                 TabRowWithContour(
                     tabs = tabs,
                     selectedTabIndex = selectedTabIndex,
-                    onTabSelected = { selectedTabIndex = it }
+                    onTabSelected = { index -> visibleCategories.getOrNull(index)?.let { onCategorySelected(it.key) } }
                 )
                 val category =
                     visibleCategories.getOrNull(selectedTabIndex) ?: visibleCategories.first()
@@ -1977,25 +2022,24 @@ private fun AioEmojiCategoryGrid(
         return
     }
 
-    LazyVerticalGrid(
-        columns = GridCells.Fixed(
-            if (category.key.contains("system")) {
-                windowInfo.emojiSystemColumns
-            } else {
-                windowInfo.emojiPackColumns
+    val fontScale = LocalDensity.current.fontScale.coerceAtLeast(1f)
+    BoxWithConstraints(modifier.fillMaxWidth()) {
+        val systemCategory = category.key.contains("system")
+        val preferredColumns = if (systemCategory) windowInfo.emojiSystemColumns else windowInfo.emojiPackColumns
+        // 图片无需放大，但文字后备标签必须有足够空间，不能在 1.5x 字号下被原列数裁切。
+        val minimumCellWidth = ((if (systemCategory) 48f else 64f) * fontScale).dp
+        val fittingColumns = ((maxWidth + 8.dp) / (minimumCellWidth + 8.dp)).toInt().coerceAtLeast(1)
+        LazyVerticalGrid(
+            columns = GridCells.Fixed(minOf(preferredColumns, fittingColumns)),
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(bottom = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            gridItems(visibleItems, key = { it.key }) { item ->
+                AioEmojiCategoryItem(
+                    item = item, controller = controller, onClick = { onEmotionClick(item) })
             }
-        ),
-        modifier = Modifier
-            .then(modifier)
-            .fillMaxWidth()
-            .heightIn(min = 120.dp),
-        contentPadding = PaddingValues(bottom = 12.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        gridItems(visibleItems, key = { it.key }) { item ->
-            AioEmojiCategoryItem(
-                item = item, controller = controller, onClick = { onEmotionClick(item) })
         }
     }
 }
@@ -2060,8 +2104,7 @@ private fun AioEmotionSheetState(
     Column(
         modifier = Modifier
             .then(modifier)
-            .fillMaxWidth()
-            .heightIn(min = 120.dp),
+            .fillMaxWidth(),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {

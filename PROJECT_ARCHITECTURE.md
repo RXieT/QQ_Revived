@@ -224,9 +224,11 @@ rg -n "me\.padi\.qqlite\.revived\.hooks" "app/src/main/java/me/padi/qqlite/reviv
 ## 源码恢复与视觉层（本分支）
 
 - `compose/component/`：从 `9570e8b` 恢复头像、图片请求、状态组件；重建功能卡片和可访问的浮动导航。导航选中状态仍由 `HomeUiController` 提供。
-- `compose/theme/`：同时提供 Miuix / Material 主题，偏好保存在当前应用私有 SharedPreferences，模块管理页与 QQ 不共享设置。系统栏只操作当前 Activity，不反向依赖 hooks。
+- `compose/theme/`：同时提供 Miuix / Material 主题，偏好保存在当前应用私有 SharedPreferences，模块管理页与 QQ 不共享设置。字体倍率由最外层未缩放的 LocalDensity 计算，保留系统字体倍率，嵌套主题不得重复相乘。系统栏只操作当前 Activity，不反向依赖 hooks。
 - `compose/screens/settings/`：管理页和 QQ 内主题面板仅发出回调，持久化由主题状态完成。
 - `shared/model/ui/`：窗口分级及聊天/通话尺寸约束；JUnit 测试位于 `app/src/test/`。
+- `compose/screens/home/HomeContentInsets.kt`：导航/顶栏留白由 Lazy 列表内容 padding 消费，不能在采样根内放固定 Spacer 导致玻璃只看到纯色。首页滚动快照停滚/离开时保存，分页按需组合。
+- `hooks/aio/AioBinding.kt`：消息 UI 未变时不重新发布 PagingData，但必须保留宿主 View 引用和媒体/成员信息刷新。不要通过跳过整个宿主同步来伪造“性能优化”。
 - `utils/HostWindowMetrics.kt`：使用宿主 View 的根窗口大小及 Insets，监听绘制/挂载更新，销毁时移除监听，不替换宿主 Insets listener。
 - `third_party/miuix-glass/`：固定 Apache-2.0 材质源码；Miuix UI/blur 为 `0.9.4-rc01`，最低 Android 13，出处见该目录 README。旧 backdrop / haze 依赖已移除。
 
