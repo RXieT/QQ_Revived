@@ -73,6 +73,12 @@ libxposed 的回调与热重载契约见 [API 102 源码](https://github.com/lib
 
 调试 APK 使用 CI 临时 debug 签名，可能与已安装版本及其他运行的签名不同。若安装提示签名冲突，先备份模块设置再卸载**模块自身**后安装；不要卸载 QQ 宿主或清除其数据。安装后强行停止 QQ 再打开。
 
+### Release 构建
+
+`.github/workflows/android-release.yml` 独立运行 release Kotlin 编译、单元测试、Lint、R8 混淆和资源压缩，并检查 APK 中的 Xposed 入口元数据。产物为 `QQ-Revived-release-运行编号`，混淆映射与报告单独上传。可通过 `workflow_dispatch` 触发；在 `fix/**` 分支修改该工作流也会触发一次。
+
+**当前 release 沿用项目的 debug 签名配置，并非正式发布密钥。** CI 临时签名可能与其他安装版本不一致，构建不会自动安装或创建 GitHub Release。Release 通过 CI 也仍需实机确认混淆后的反射和 Hook 行为。
+
 ### 本地构建
 
 需要 JDK 21、Android SDK Platform 37.0（SDK 包名为 `platforms;android-37.0`）、Build Tools 37.0.0；Gradle 由仓库 Wrapper 下载。
